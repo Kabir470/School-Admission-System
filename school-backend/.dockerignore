@@ -1,11 +1,8 @@
 **/bin/
 **/obj/
+**/TestResults/
 **/.vs/
-**/.vscode/
-**/*.user
-tests/
-db/
 Dockerfile
 .dockerignore
-.git
-.gitignore
+.env
+.env.*
