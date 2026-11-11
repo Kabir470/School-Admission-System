@@ -56,7 +56,7 @@ The tests that matter most:
 | `ContractTests.*` | Field names, types and status codes of all 8 endpoints |
 | `ApplicationPage.test.tsx` "flips to EXPIRED…" | The UI shows `EXPIRED` and disables Pay with no reload |
 
-With Node 22+ installed, the frontend tests also run locally: `cd frontend && npm ci && npm test`.
+With Node 22+ installed, the frontend tests also run locally: `cd school-frontend && npm ci && npm test`.
 
 ## Things to try
 
@@ -123,19 +123,19 @@ Base URL `http://localhost:8080`. JSON. The student is identified by the `X-Stud
 
 - **No overbooking.** Applying is one database transaction that first locks the class row (`SELECT … FOR UPDATE`), then counts the active holds, then inserts. The lock is in PostgreSQL, so it works across any number of backend processes. → [ADR 0001](docs/adrs/0001-seat-invariant-enforced-by-per-class-row-lock.md)
 - **Expiry needs nothing to run.** A hold counts only while `expires_at > now()` on the database clock, checked on every read. A background sweeper also writes `EXPIRED` into the rows, but correctness does not depend on it. → [ADR 0002](docs/adrs/0002-lazy-expiry-is-the-guarantee-sweeper-for-timeliness.md)
-- **The schema is plain SQL** in `backend/db/init/`, applied by PostgreSQL on first start. → [ADR 0003](docs/adrs/0003-database-first-sql-schema-applied-by-postgres-init.md)
+- **The schema is plain SQL** in `school-backend/db/init/`, applied by PostgreSQL on first start. → [ADR 0003](docs/adrs/0003-database-first-sql-schema-applied-by-postgres-init.md)
 
 ## Repository layout
 
 ```
-backend/
+school-backend/
   db/init/001_schema.sql          the schema
   src/SchoolAdmission.Domain/         statuses, error codes, validation rules
   src/SchoolAdmission.Application/    ClassService, HoldService
   src/SchoolAdmission.Infrastructure/ SQL (HoldStore, ClassStore), expiry sweeper
   src/SchoolAdmission.Api/            endpoints, error responses, CORS
   tests/SchoolAdmission.Tests/        integration tests
-frontend/
+school-frontend/
   src/features/{classes,holds,student}/   screens and their data hooks
   src/shared/{api,ui,lib}/                API client, error messages, shared UI
 docker-compose.yml
@@ -147,4 +147,4 @@ docs/                             architecture, decisions (ADRs), stories
 - [ASSUMPTIONS.md](ASSUMPTIONS.md) — what I decided where the brief was silent, and how two backends stay consistent.
 - [AI_USAGE.md](AI_USAGE.md) — which AI tool I used, for what, and where it was wrong.
 - [docs/architecture/school-admission-system.md](docs/architecture/school-admission-system.md) — the full design, with a table mapping each requirement to its mechanism and its test.
-- `CLAUDE.md`, `.claude/`, `templates/`, `contexts/` — my working setup for the AI coding agent. Not part of the application.
+- `templates/` — document templates used to write the docs. Not part of the application.

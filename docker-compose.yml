@@ -17,7 +17,7 @@ name: school-admission
 
 x-backend: &backend
   build:
-    context: ./backend
+    context: ./school-backend
     target: final
   environment: &backend-env
     ConnectionStrings__Default: "Host=db;Port=5432;Database=admission;Username=admission;Password=admission;Maximum Pool Size=100;Max Auto Prepare=20"
@@ -41,7 +41,7 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
       # The schema (ADR 0003). Postgres runs these files once, on an empty data volume.
-      - ./backend/db/init:/docker-entrypoint-initdb.d:ro
+      - ./school-backend/db/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       # Over TCP on purpose: while the init scripts run, Postgres listens only on its
       # unix socket, so this turns healthy only when the schema is in place.
@@ -60,7 +60,7 @@ services:
 
   frontend:
     build:
-      context: ./frontend
+      context: ./school-frontend
       target: final
     ports:
       - "3000:80"
@@ -87,7 +87,7 @@ services:
   frontend-2:
     profiles: ["scale"]
     build:
-      context: ./frontend
+      context: ./school-frontend
       target: final
     ports:
       - "3001:80"
@@ -101,7 +101,7 @@ services:
   tests:
     profiles: ["test"]
     build:
-      context: ./backend
+      context: ./school-backend
       target: test
     environment:
       # The suite creates its own throwaway databases on this server and drops them.
@@ -113,7 +113,7 @@ services:
   frontend-tests:
     profiles: ["test"]
     build:
-      context: ./frontend
+      context: ./school-frontend
       target: test
 
 volumes:
