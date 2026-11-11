@@ -480,3 +480,28 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
+
+## ---------------------------------------------------------------
+## Project-specific
+## ---------------------------------------------------------------
+
+# Local secrets / environment overrides (keep appsettings.json + appsettings.Development.json tracked)
+.env.*
+!.env.example
+appsettings.*.local.json
+appsettings.Local.json
+secrets.json
+
+# Test results & coverage output
+TestResults/
+coverage/
+*.coverage
+coverage*.xml
+coverage*.json
+
+# Local databases
+*.db
+*.db-shm
+*.db-wal
+*.mdf
+*.ldf

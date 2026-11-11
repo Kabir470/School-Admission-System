@@ -1,0 +1,120 @@
+# School Admission System
+#
+#   docker compose up --build                               database + backend + frontend
+#       UI   http://localhost:3000
+#       API  http://localhost:8080
+#
+#   docker compose --profile test run --rm tests            backend tests
+#   docker compose --profile test run --rm frontend-tests   frontend tests
+#
+#   docker compose --profile scale up --build               adds a second backend (8081) and a
+#                                                           second UI (3001) on the same database
+#
+# Data lives in the named volume "pgdata": `docker compose down` keeps it,
+# `docker compose down -v` deletes it.
+
+name: school-admission
+
+x-backend: &backend
+  build:
+    context: ./backend
+    target: final
+  environment: &backend-env
+    ConnectionStrings__Default: "Host=db;Port=5432;Database=admission;Username=admission;Password=admission;Maximum Pool Size=100;Max Auto Prepare=20"
+    HOLD_DURATION_SECONDS: "${HOLD_DURATION_SECONDS:-600}"
+    CORS_ORIGINS: "${CORS_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001}"
+  depends_on:
+    db:
+      condition: service_healthy
+  restart: unless-stopped
+
+services:
+  db:
+    image: postgres:16
+    # Requests waiting on a class row lock each hold a connection, so leave headroom
+    # for two backends plus a test run.
+    command: ["postgres", "-c", "max_connections=400"]
+    environment:
+      POSTGRES_USER: admission
+      POSTGRES_PASSWORD: admission # local demo value, not a secret
+      POSTGRES_DB: admission
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # The schema (ADR 0003). Postgres runs these files once, on an empty data volume.
+      - ./backend/db/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      # Over TCP on purpose: while the init scripts run, Postgres listens only on its
+      # unix socket, so this turns healthy only when the schema is in place.
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U admission -d admission"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    restart: unless-stopped
+    # No host port: nothing outside Docker needs the database. To inspect it:
+    #   docker compose exec db psql -U admission
+
+  backend:
+    <<: *backend
+    ports:
+      - "8080:8080"
+
+  frontend:
+    build:
+      context: ./frontend
+      target: final
+    ports:
+      - "3000:80"
+    environment:
+      # Read when the container STARTS and written into /config.js, which the browser
+      # loads before the app. Change it and restart; no rebuild is needed.
+      # It is the address the BROWSER uses, so it is localhost, not the service name.
+      API_URL: "${API_URL:-http://localhost:8080}"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  # ---- profile "scale": two backend processes, one database (bonus) -------------------
+  # A second, independent backend process on another port. Nothing coordinates the two
+  # except PostgreSQL row locks (ADR 0001), and held + confirmed still never exceeds
+  # totalSeats. frontend-2 is the same UI image pointed at the second backend, purely by
+  # its API_URL: open http://localhost:3000 and http://localhost:3001 side by side.
+  backend-2:
+    <<: *backend
+    profiles: ["scale"]
+    ports:
+      - "8081:8080"
+
+  frontend-2:
+    profiles: ["scale"]
+    build:
+      context: ./frontend
+      target: final
+    ports:
+      - "3001:80"
+    environment:
+      API_URL: "http://localhost:8081"
+    depends_on:
+      - backend-2
+    restart: unless-stopped
+
+  # ---- profile "test": both suites run in containers; only Docker is needed -----------
+  tests:
+    profiles: ["test"]
+    build:
+      context: ./backend
+      target: test
+    environment:
+      # The suite creates its own throwaway databases on this server and drops them.
+      TEST_DB_CONNECTION: "Host=db;Port=5432;Database=admission;Username=admission;Password=admission"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend-tests:
+    profiles: ["test"]
+    build:
+      context: ./frontend
+      target: test
+
+volumes:
+  pgdata:
