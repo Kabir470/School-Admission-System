@@ -1,4 +1,4 @@
-# AI Usage
+# AI Usage summary
 
 ## Tool and how I used it
 
